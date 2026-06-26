@@ -4,6 +4,11 @@ A multi-agent research pipeline built with the [OpenAI Agents SDK](https://opena
 
 The project uses typed Pydantic outputs so each agent returns predictable, structured data.
 
+
+![Uploading image.png…]()
+
+
+
 ## Features
 
 - **Automated research planning** — breaks a user query into five focused web search terms
