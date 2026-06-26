@@ -1,4 +1,4 @@
-# Deep Research ✨
+# Deep Research Agent ✨
 
 A multi-agent research pipeline built with the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/). Given a topic, the system plans targeted web searches, runs them in parallel, synthesizes a long-form markdown report, and optionally emails the result via Gmail.
 
