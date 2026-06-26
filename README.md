@@ -111,17 +111,6 @@ RECIPIENT_EMAIL=recipient@example.com
 
 > Research and report generation work without Gmail credentials. Only the final email step requires them.
 
-## Known issues / bugs to fix
-
-### `write_agent.py` — missing import
-`List` is used in the type annotation but never imported. Add the following import at the top of the file:
-
-```python
-from typing import List
-```
-
-Without this, the agent will raise a `NameError` at runtime.
-
 ## Configuration
 
 ### Change the number of searches
@@ -163,7 +152,6 @@ https://platform.openai.com/traces/trace?trace_id=<trace_id>
 
 | Issue | Likely cause | Fix |
 | --- | --- | --- |
-| `NameError: name 'List' is not defined` | Missing import in `write_agent.py` | Add `from typing import List` |
 | `ModuleNotFoundError: agents` | `openai-agents` not installed | `pip install openai-agents` |
 | Search step fails | Missing web search access on your OpenAI account | Enable hosted web search for your API key |
 | Email step fails | Missing or wrong Gmail credentials | Check `GMAIL_EMAIL`, `GMAIL_APP_PASSWORD`, `RECIPIENT_EMAIL` in `.env`; ensure App Password is used |
