@@ -1,3 +1,5 @@
+from agents import Agent, WebSearchTool, ModelSettings
+
 INSTRUCTIONS = (
     "You are a research assistant. Given a search term, you search the web for that term and "
     "produce a concise summary of the results. The summary must 2-3 paragraphs and less than 300 "
@@ -8,9 +10,9 @@ INSTRUCTIONS = (
 
 search_agent = Agent(
     name="search_agent",
-    model="openai/gpt-oss-120b:free"
+    model="openai/gpt-oss-120b:free",
     instructions=INSTRUCTIONS,
-    description="Search the web for a given search term and produce a concise summary of the results.",
+    handoff_description="Search the web for a given search term and produce a concise summary of the results.",    
     tools=[WebSearchTool(search_context_size="low")],
-    tool_choice="required"
+    model_settings=ModelSettings(tool_choice="required")
 )

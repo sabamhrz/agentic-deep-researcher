@@ -24,5 +24,5 @@ planner_agent = Agent(
     name= "Planner Agent",
     instructions= INSTRUCTIONS,
     model="openai/gpt-oss-120b:free",
-    output=WebSearchPlan
+    output_type=WebSearchPlan
 )

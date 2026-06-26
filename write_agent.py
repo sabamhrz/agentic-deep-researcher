@@ -1,3 +1,5 @@
+from typing import List
+
 from pydantic import BaseModel
 from agents import Agent
 
@@ -25,6 +27,6 @@ write_agent = Agent(
     name="write_agent",
     model="openai/gpt-oss-120b:free",
     instructions=INSTRUCTIONS,
-    description="Write a cohesive report for a given query and research.",
-    output_schema=ReportData
+    handoff_description="Write a cohesive report for a given query and research.",
+    output_type=ReportData
 )
