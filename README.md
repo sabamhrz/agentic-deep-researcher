@@ -5,7 +5,7 @@ A multi-agent research pipeline built with the [OpenAI Agents SDK](https://opena
 The project uses typed Pydantic outputs so each agent returns predictable, structured data.
 
 
-![Uploading image.png…]()
+<img width="1874" height="906" alt="image" src="https://github.com/user-attachments/assets/1527de74-8dab-4225-a6bd-756b02795260" />
 
 
 
