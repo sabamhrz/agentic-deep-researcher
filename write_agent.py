@@ -1,16 +1,26 @@
 from typing import List
 
 from pydantic import BaseModel
-from agents import Agent
+from agents import Agent, ModelSettings
 
-INSTRUCTIONS = (
-    "You are a senior researcher tasked with writing a cohesive report for a research query. "
-    "You will be provided with the original query, and some initial research done by a research assistant.\n"
-    "You should first come up with an outline for the report that describes the structure and "
-    "flow of the report. Then, generate the report and return that as your final output.\n"
-    "The final output should be in markdown format, and it should be lengthy and detailed. Aim "
-    "for 5-10 pages of content, at least 1000 words."
-)
+from env_config import get_model_name
+
+INSTRUCTIONS = """You are a senior researcher writing a detailed markdown report.
+
+You will receive the original query and summarized search results.
+
+Output ONLY these three sections, in this exact order:
+
+## SUMMARY
+Write 2-3 sentences summarizing the key findings.
+
+## FOLLOW_UPS
+List 3-5 follow-up questions as bullet points using "- ".
+
+## REPORT
+Write a clear markdown report with headings. Aim for 400-600 words.
+Use only the provided research. Do not add JSON or extra sections."""
+
 
 class ReportData(BaseModel):
     short_summary: str
@@ -22,11 +32,11 @@ class ReportData(BaseModel):
     follow_up_questions: List[str]
     "List of questions that could be asked to further improve the report"
 
-# write_agent - write the final report, 
+
 write_agent = Agent(
     name="write_agent",
-    model="openai/gpt-oss-120b:free",
     instructions=INSTRUCTIONS,
+    model=get_model_name(),
     handoff_description="Write a cohesive report for a given query and research.",
-    output_type=ReportData
+    model_settings=ModelSettings(temperature=0.4),
 )

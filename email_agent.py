@@ -4,12 +4,9 @@ from email.mime.text import MIMEText
 from typing import Dict
 
 from agents import Agent, function_tool
-from pathlib import Path
-from dotenv import load_dotenv
+from env_config import get_model_name, load_env
 
-load_dotenv(Path(__file__).parent / ".env", override=True)
-
-email_model = "openai/gpt-oss-120b:free"
+load_env()
 
 
 @function_tool
@@ -46,5 +43,5 @@ email_agent = Agent(
     name="email_agent",
     instructions=INSTRUCTIONS,
     tools=[send_report_email],
-    model=email_model,
+    model=get_model_name(),
 )
