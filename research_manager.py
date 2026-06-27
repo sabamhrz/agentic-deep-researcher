@@ -1,20 +1,25 @@
-from agents import Agent, ModelSettings, Runner, gen_trace_id, trace
-from planner_agent import planner_agent, WebSearchItem, WebSearchPlan
-from write_agent import INSTRUCTIONS as WRITE_INSTRUCTIONS, ReportData
+import asyncio
+import json
+
+from agents import Runner, gen_trace_id, trace
+from agents.items import ToolCallOutputItem
+from email_agent import email_agent
 from env_config import (
+    EMAIL_MAX_TURNS,
     EMAIL_TIMEOUT_SECONDS,
+    SEARCH_MAX_TURNS,
+    SEARCH_TIMEOUT_SECONDS,
+    WRITE_TIMEOUT_SECONDS,
     get_run_config,
     get_write_model_candidates,
     load_env,
     using_openrouter,
-    WRITE_MAX_TOKENS,
-    WRITE_TIMEOUT_SECONDS,
 )
-from email_delivery import deliver_report_email
 from plan_parser import fallback_search_plan, parse_search_plan_json, parse_search_plan_text
+from planner_agent import WebSearchItem, WebSearchPlan, planner_agent
 from report_parser import fallback_report, parse_report_text
-from web_search import search_web_text
-import asyncio
+from search_agent import search_agent
+from write_agent import ReportData, build_write_agent
 
 load_env()
 
@@ -142,30 +147,37 @@ class ResearchManager:
         yield {"type": "search_results", "results": results}
 
     async def search(self, item: WebSearchItem) -> str | None:
-        """Fetch web results directly without an extra LLM summarization step."""
+        """Run search_agent: LLM calls search_web tool and returns a concise summary."""
+        prompt = (
+            f"Search term: {item.query}\n"
+            f"Context: {item.reason}\n\n"
+            "Search the web and return only your concise summary."
+        )
         try:
-            return await asyncio.to_thread(search_web_text, item.query)
+            result = await asyncio.wait_for(
+                Runner.run(
+                    search_agent,
+                    prompt,
+                    run_config=get_run_config(),
+                    max_turns=SEARCH_MAX_TURNS,
+                ),
+                timeout=SEARCH_TIMEOUT_SECONDS,
+            )
+            summary = str(result.final_output).strip()
+            return summary or None
         except Exception as exc:
-            print(f"Search failed for '{item.query}': {exc}")
+            print(f"Search agent failed for '{item.query}': {exc}")
             return None
 
     async def write_report(self, query: str, search_results: list[str]) -> ReportData:
-        """Write the report for the query, trying multiple models before falling back."""
+        """Write the report via write_agent, trying multiple models before falling back."""
         print("Thinking about report...")
         prompt = self._build_write_prompt(query, search_results)
         last_error: Exception | None = None
 
         for model in get_write_model_candidates():
             try:
-                writer = Agent(
-                    name="write_agent",
-                    instructions=WRITE_INSTRUCTIONS,
-                    model=model,
-                    model_settings=ModelSettings(
-                        temperature=0.3,
-                        max_tokens=WRITE_MAX_TOKENS,
-                    ),
-                )
+                writer = build_write_agent(model)
                 result = await asyncio.wait_for(
                     Runner.run(writer, prompt, run_config=get_run_config()),
                     timeout=WRITE_TIMEOUT_SECONDS,
@@ -219,23 +231,68 @@ class ResearchManager:
         )
 
     async def send_email(self, report: ReportData) -> dict:
+        """Deliver the report via email_agent and its send_report_email tool."""
         print("Sending email...")
+        prompt = self._build_email_prompt(report)
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(deliver_report_email, report),
+                Runner.run(
+                    email_agent,
+                    prompt,
+                    run_config=get_run_config(),
+                    max_turns=EMAIL_MAX_TURNS,
+                ),
                 timeout=EMAIL_TIMEOUT_SECONDS,
             )
-            status = result.get("status", "error")
+            email_result = self._parse_email_agent_result(result)
+            status = email_result.get("status", "error")
             if status == "success":
                 print("Email sent")
             elif status == "skipped":
-                print(f"Email skipped: {result.get('message')}")
+                print(f"Email skipped: {email_result.get('message')}")
             else:
-                print(f"Email step failed: {result.get('message')}")
-            return result
+                print(f"Email step failed: {email_result.get('message')}")
+            return email_result
         except Exception as exc:
             print(f"Email step failed: {exc}")
             return {"status": "error", "message": str(exc)}
+
+    @staticmethod
+    def _build_email_prompt(report: ReportData) -> str:
+        follow_ups = "\n".join(f"- {question}" for question in report.follow_up_questions)
+        return (
+            "Send one HTML email with this research report.\n\n"
+            f"Executive summary:\n{report.short_summary}\n\n"
+            f"Full report (markdown):\n{report.markdown_report}\n\n"
+            f"Follow-up questions:\n{follow_ups or '- None'}"
+        )
+
+    @staticmethod
+    def _parse_email_agent_result(result) -> dict:
+        for item in reversed(result.new_items):
+            if not isinstance(item, ToolCallOutputItem):
+                continue
+            parsed = ResearchManager._coerce_tool_status(item.output)
+            if parsed is not None:
+                return parsed
+
+        return {
+            "status": "error",
+            "message": "Email agent finished without calling send_report_email.",
+        }
+
+    @staticmethod
+    def _coerce_tool_status(output) -> dict | None:
+        if isinstance(output, dict) and "status" in output:
+            return output
+        if isinstance(output, str):
+            try:
+                parsed = json.loads(output)
+            except json.JSONDecodeError:
+                return None
+            if isinstance(parsed, dict) and "status" in parsed:
+                return parsed
+        return None
 
     @staticmethod
     def _complete_message(email_result: dict) -> str:

@@ -3,7 +3,7 @@ from typing import List
 from pydantic import BaseModel
 from agents import Agent, ModelSettings
 
-from env_config import get_model_name
+from env_config import WRITE_MAX_TOKENS, get_model_name
 
 INSTRUCTIONS = """You are a senior researcher writing a detailed markdown report.
 
@@ -33,10 +33,15 @@ class ReportData(BaseModel):
     "List of questions that could be asked to further improve the report"
 
 
-write_agent = Agent(
-    name="write_agent",
-    instructions=INSTRUCTIONS,
-    model=get_model_name(),
-    handoff_description="Write a cohesive report for a given query and research.",
-    model_settings=ModelSettings(temperature=0.4),
-)
+def build_write_agent(model: str | None = None) -> Agent:
+    """Build a write agent, optionally overriding the model for fallback retries."""
+    return Agent(
+        name="write_agent",
+        instructions=INSTRUCTIONS,
+        model=model or get_model_name(),
+        handoff_description="Write a cohesive report for a given query and research.",
+        model_settings=ModelSettings(temperature=0.3, max_tokens=WRITE_MAX_TOKENS),
+    )
+
+
+write_agent = build_write_agent()

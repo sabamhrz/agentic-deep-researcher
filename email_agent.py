@@ -3,7 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from typing import Dict
 
-from agents import Agent, function_tool
+from agents import Agent, ModelSettings, function_tool
 from env_config import get_model_name, load_env
 
 load_env()
@@ -17,7 +17,10 @@ def send_report_email(subject: str, html_body: str) -> Dict[str, str]:
     recipient = os.environ.get('RECIPIENT_EMAIL')
 
     if not gmail_user or not gmail_password or not recipient:
-        return {"status": "error", "message": "Missing GMAIL_EMAIL, GMAIL_APP_PASSWORD, or RECIPIENT_EMAIL"}
+        return {
+            "status": "skipped",
+            "message": "Missing GMAIL_EMAIL, GMAIL_APP_PASSWORD, or RECIPIENT_EMAIL",
+        }
 
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
@@ -35,13 +38,15 @@ def send_report_email(subject: str, html_body: str) -> Dict[str, str]:
         return {"status": "error", "message": str(exc)}
 
 
-INSTRUCTIONS = """You are able to send a nicely formatted HTML email based on a detailed report.
-You will be provided with a detailed report. You should use your tool to send one email, providing the 
-report converted into clean, well presented HTML with an appropriate subject line."""
+INSTRUCTIONS = """You are able to send a nicely formatted HTML email based on a detailed research report.
+You will receive the executive summary, full markdown report, and follow-up questions.
+Use your send_report_email tool exactly once to deliver the report as clean HTML with an appropriate subject line.
+Convert markdown headings and bullet lists into HTML. Do not send more than one email."""
 
 email_agent = Agent(
     name="email_agent",
     instructions=INSTRUCTIONS,
     tools=[send_report_email],
     model=get_model_name(),
+    model_settings=ModelSettings(temperature=0.2, tool_choice="required"),
 )

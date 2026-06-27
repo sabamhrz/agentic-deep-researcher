@@ -17,11 +17,11 @@ The project uses typed Pydantic outputs so each agent returns predictable, struc
 | Stage | Agent | Responsibility |
 | --- | --- | --- |
 | 1. Plan | `planner_agent` | Break the user query into 5 targeted web search terms |
-| 2. Search | `search_agent` | Run each search with `WebSearchTool` and return concise summaries |
+| 2. Search | `search_agent` | Calls `search_web` tool and returns a concise summary per query |
 | 3. Write | `write_agent` | Produce a detailed markdown report with summary and follow-up questions |
-| 4. Deliver | `email_agent` | Convert the report to HTML and send via Gmail SMTP |
+| 4. Deliver | `email_agent` | Formats HTML and sends via `send_report_email` tool |
 
-`ResearchManager` orchestrates the full pipeline asynchronously and records an OpenAI trace for debugging.
+`ResearchManager` orchestrates the full pipeline asynchronously. Each stage runs its dedicated agent through `Runner.run()` from the OpenAI Agents SDK.
 
 ```mermaid
 flowchart TD
@@ -130,15 +130,15 @@ All agents currently use `openai/gpt-oss-120b:free`. Change the `model=` argumen
 - `write_agent.py`
 - `email_agent.py`
 
-### Search tool settings
+### Search agent settings
 
-`search_agent.py` uses `WebSearchTool(search_context_size="low")` with `tool_choice="required"`. Adjust `search_context_size` (`low`, `medium`, `high`) to trade cost for richer context.
+`search_agent.py` uses the `search_web` function tool with `tool_choice="required"`. Each search runs with `max_turns=SEARCH_MAX_TURNS` (default 5) in `research_manager.py`.
 
 ## Architecture notes
 
 - **Typed outputs:** `WebSearchPlan`, `WebSearchItem`, and `ReportData` are Pydantic models, so planner and writer agents return structured data instead of free-form text.
-- **Concurrent search:** Searches are intended to run in parallel. Individual search failures should be skipped without stopping the pipeline.
-- **Email tool:** The email agent calls a `@function_tool` wrapper around Python's `smtplib`, letting the model format HTML and choose a subject line, then sends via Gmail SMTP SSL on port 465.
+- **Concurrent search:** Each planned query is handled by `search_agent` in parallel via `Runner.run()`.
+- **Email tool:** The email agent calls the `@function_tool` `send_report_email`, which sends via Gmail SMTP SSL on port 465.
 
 ## Observability
 
